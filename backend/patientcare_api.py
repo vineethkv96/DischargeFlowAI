@@ -461,21 +461,49 @@ async def get_current_user_info(current_user: TokenData = Depends(get_current_us
 
 @patientcare_router.get("/patients", response_model=List[Patient])
 async def get_patients(current_user: TokenData = Depends(require_staff)):
-    """Get all patients"""
-    # Only get patients that have patientcare-specific fields (firstName, lastName, etc.)
-    # This filters out patients from other systems that use different schemas
-    patients = await db.patients.find(
-        {"firstName": {"$exists": True}}, 
-        {"_id": 0}
-    ).to_list(1000)
+    """Get all patients (both PatientCare Hub and DischargeFlow patients)"""
+    # Get all patients regardless of schema
+    all_patients_raw = await db.patients.find({}, {"_id": 0}).to_list(2000)
     
-    # Filter and validate patients, skipping any that don't match the schema
     valid_patients = []
-    for p in patients:
+    for p in all_patients_raw:
         try:
-            valid_patients.append(Patient(**p))
-        except Exception:
-            # Skip patients that don't match the Patient schema
+            # If it has firstName/lastName, it's a PatientCare Hub patient
+            if p.get("firstName") and p.get("lastName"):
+                valid_patients.append(Patient(**p))
+            # If it has mrn but no firstName, it's a DischargeFlow patient - convert it
+            elif p.get("mrn") and not p.get("firstName"):
+                # Convert DischargeFlow patient to PatientCare Hub format for display
+                name_parts = p.get("name", "Unknown Patient").split()
+                discharge_patient = {
+                    "id": p.get("id", ""),
+                    "firstName": name_parts[0] if name_parts else "Unknown",
+                    "lastName": " ".join(name_parts[1:]) if len(name_parts) > 1 else "",
+                    "age": p.get("age"),
+                    "gender": "Other",  # DischargeFlow doesn't have gender
+                    "address": "",
+                    "phone": "",
+                    "emergencyContact": "",
+                    "medicalHistory": "",
+                    "lastVisit": p.get("created_at", "").split("T")[0] if isinstance(p.get("created_at"), str) else (p.get("created_at").isoformat().split("T")[0] if p.get("created_at") else ""),
+                    "allergies": "",
+                    "currentDiagnosis": p.get("diagnosis", ""),
+                    "existingConditions": "",
+                    "createdAt": p.get("created_at", ""),
+                    "updatedAt": p.get("updated_at", ""),
+                }
+                # Only add if we have at least a name
+                if p.get("name"):
+                    try:
+                        valid_patients.append(Patient(**discharge_patient))
+                    except Exception as e:
+                        import logging
+                        logging.warning(f"Failed to convert DischargeFlow patient {p.get('id')}: {e}")
+                        continue
+        except Exception as e:
+            # Skip patients that can't be converted
+            import logging
+            logging.warning(f"Skipping patient {p.get('id', 'unknown')}: {e}")
             continue
     
     return valid_patients
@@ -856,6 +884,44 @@ async def get_patient_dashboard(patient_id: str, current_user: TokenData = Depen
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
     
+    # Check if this is a PatientCare Hub patient (has firstName) or DischargeFlow patient (has mrn but no firstName)
+    if not patient.get("firstName") and patient.get("mrn"):
+        # This is a DischargeFlow patient - convert it to PatientCare Hub format
+        name_parts = patient.get("name", "Unknown Patient").split()
+        patient_converted = {
+            "id": patient.get("id", ""),
+            "firstName": name_parts[0] if name_parts else "Unknown",
+            "lastName": " ".join(name_parts[1:]) if len(name_parts) > 1 else "",
+            "age": patient.get("age"),
+            "gender": "Other",
+            "address": "",
+            "phone": "",
+            "emergencyContact": "",
+            "medicalHistory": "",
+            "lastVisit": patient.get("created_at", "").split("T")[0] if isinstance(patient.get("created_at"), str) else (patient.get("created_at").isoformat().split("T")[0] if patient.get("created_at") else ""),
+            "allergies": "",
+            "currentDiagnosis": patient.get("diagnosis", ""),
+            "existingConditions": "",
+            "createdAt": patient.get("created_at", ""),
+            "updatedAt": patient.get("updated_at", ""),
+        }
+        try:
+            patient_obj = Patient(**patient_converted)
+        except Exception as e:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Failed to convert DischargeFlow patient to PatientCare Hub format: {str(e)}"
+            )
+    else:
+        # This is a PatientCare Hub patient
+        try:
+            patient_obj = Patient(**patient)
+        except Exception as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid patient data format: {str(e)}"
+            )
+    
     # Get all related data
     lab_tests = await db.lab_tests.find({"patientId": patient_id}, {"_id": 0}).to_list(1000)
     timeline = await db.timeline.find({"patientId": patient_id}, {"_id": 0}).sort("timestamp", -1).to_list(1000)
@@ -864,13 +930,56 @@ async def get_patient_dashboard(patient_id: str, current_user: TokenData = Depen
     medications = await db.medications.find({"patientId": patient_id}, {"_id": 0}).to_list(1000)
     insurance = await db.insurance.find_one({"patientId": patient_id}, {"_id": 0})
     
+    # Validate and convert related data
+    lab_tests_valid = []
+    for t in lab_tests:
+        try:
+            lab_tests_valid.append(LabTest(**t))
+        except Exception:
+            continue
+    
+    timeline_valid = []
+    for e in timeline:
+        try:
+            timeline_valid.append(TimelineEvent(**e))
+        except Exception:
+            continue
+    
+    notes_valid = []
+    for n in notes:
+        try:
+            notes_valid.append(Note(**n))
+        except Exception:
+            continue
+    
+    billing_valid = []
+    for b in billing:
+        try:
+            billing_valid.append(BillingItem(**b))
+        except Exception:
+            continue
+    
+    medications_valid = []
+    for m in medications:
+        try:
+            medications_valid.append(Medication(**m))
+        except Exception:
+            continue
+    
+    insurance_obj = None
+    if insurance:
+        try:
+            insurance_obj = Insurance(**insurance)
+        except Exception:
+            pass
+    
     return PatientDashboardResponse(
-        patient=Patient(**patient),
-        labTests=[LabTest(**t) for t in lab_tests],
-        timeline=[TimelineEvent(**e) for e in timeline],
-        doctorNotes=[Note(**n) for n in notes if n.get("type") == "doctor"],
-        nurseNotes=[Note(**n) for n in notes if n.get("type") == "nurse"],
-        billing=[BillingItem(**b) for b in billing],
-        medications=[Medication(**m) for m in medications],
-        insurance=Insurance(**insurance) if insurance else None
+        patient=patient_obj,
+        labTests=lab_tests_valid,
+        timeline=timeline_valid,
+        doctorNotes=[n for n in notes_valid if n.type == "doctor"],
+        nurseNotes=[n for n in notes_valid if n.type == "nurse"],
+        billing=billing_valid,
+        medications=medications_valid,
+        insurance=insurance_obj
     )

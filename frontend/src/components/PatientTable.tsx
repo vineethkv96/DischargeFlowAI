@@ -1,25 +1,25 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
-import { Patient } from "@/lib/mockData";
-import { useNavigate } from "react-router-dom";
+import { Patient } from "@/lib/api";
 import { Search } from "lucide-react";
 
 interface PatientTableProps {
   patients: Patient[];
+  onViewDetails?: (patient: Patient) => void;
 }
 
-export function PatientTable({ patients }: PatientTableProps) {
+export function PatientTable({ patients, onViewDetails }: PatientTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const navigate = useNavigate();
 
   const filteredPatients = patients.filter(
     (patient) =>
-      patient.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      patient.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      patient.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       patient.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.phone.includes(searchTerm)
+      (patient.phone && patient.phone.includes(searchTerm))
   );
 
   return (
@@ -55,27 +55,45 @@ export function PatientTable({ patients }: PatientTableProps) {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredPatients.map((patient) => (
-                <TableRow key={patient.id} className="hover:bg-accent/50">
-                  <TableCell className="font-medium text-primary">{patient.id}</TableCell>
-                  <TableCell className="font-medium">
-                    {patient.firstName} {patient.lastName}
-                  </TableCell>
-                  <TableCell>{patient.gender}</TableCell>
-                  <TableCell>{patient.age}</TableCell>
-                  <TableCell>{patient.phone}</TableCell>
-                  <TableCell>{new Date(patient.lastVisit).toLocaleDateString()}</TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(`/patient/${patient.id}`)}
-                    >
-                      View Details
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
+              filteredPatients.map((patient) => {
+                const fullName = `${patient.firstName || ""} ${patient.lastName || ""}`.trim() || "Unknown";
+                const isDischargeFlow = !patient.phone && patient.currentDiagnosis;
+                
+                return (
+                  <TableRow key={patient.id} className="hover:bg-accent/50">
+                    <TableCell className="font-medium text-primary">{patient.id}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <span>{fullName}</span>
+                        {isDischargeFlow && (
+                          <Badge variant="outline" className="text-xs">
+                            DischargeFlow
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>{patient.gender || "N/A"}</TableCell>
+                    <TableCell>{patient.age || "N/A"}</TableCell>
+                    <TableCell>{patient.phone || "N/A"}</TableCell>
+                    <TableCell>
+                      {patient.lastVisit ? new Date(patient.lastVisit).toLocaleDateString() : "N/A"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (onViewDetails) {
+                            onViewDetails(patient);
+                          }
+                        }}
+                      >
+                        View Details
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>

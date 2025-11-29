@@ -19,6 +19,8 @@ import { Medications } from "@/components/Medications";
 import { Insurance } from "@/components/Insurance";
 import { AppHeader } from "@/components/AppHeader";
 import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function PatientDetails() {
   const { id } = useParams<{ id: string }>();
@@ -81,24 +83,77 @@ export default function PatientDetails() {
       />
 
       <div className="container mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <PatientInfo patient={patient} onUpdate={loadData} />
-            <LabTests patientId={patient.id} tests={labTests} onUpdate={loadData} />
-            <Medications patientId={patient.id} medications={medications} onUpdate={loadData} />
-            <Insurance patientId={patient.id} insurance={insurance || undefined} billingItems={billing} onUpdate={loadData} />
-            <Notes
-              patientId={patient.id}
-              doctorNotes={doctorNotes}
-              nurseNotes={nurseNotes}
-              onUpdate={loadData}
-            />
-            <Billing patientId={patient.id} items={billing} insurance={insurance} onUpdate={loadData} />
-          </div>
-          <div className="lg:col-span-1">
-            <Timeline events={timeline} />
-          </div>
-        </div>
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full grid-cols-6 mb-6">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="lab-tests">Lab Tests</TabsTrigger>
+            <TabsTrigger value="medications">Medications</TabsTrigger>
+            <TabsTrigger value="insurance">Insurance</TabsTrigger>
+            <TabsTrigger value="notes">Notes</TabsTrigger>
+            <TabsTrigger value="billing">Billing</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
+                <PatientInfo patient={patient} onUpdate={loadData} />
+              </div>
+              <div className="lg:col-span-1">
+                <Timeline events={timeline} />
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="lab-tests" className="space-y-6">
+            <Card>
+              <CardContent className="pt-6">
+                <LabTests patientId={patient.id} tests={labTests} onUpdate={loadData} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="medications" className="space-y-6">
+            <Card>
+              <CardContent className="pt-6">
+                <Medications patientId={patient.id} medications={medications} onUpdate={loadData} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="insurance" className="space-y-6">
+            <Card>
+              <CardContent className="pt-6">
+                <Insurance 
+                  patientId={patient.id} 
+                  insurance={insurance || undefined} 
+                  billingItems={billing} 
+                  onUpdate={loadData} 
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="notes" className="space-y-6">
+            <Card>
+              <CardContent className="pt-6">
+                <Notes
+                  patientId={patient.id}
+                  doctorNotes={doctorNotes}
+                  nurseNotes={nurseNotes}
+                  onUpdate={loadData}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="billing" className="space-y-6">
+            <Card>
+              <CardContent className="pt-6">
+                <Billing patientId={patient.id} items={billing} insurance={insurance} onUpdate={loadData} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

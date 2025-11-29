@@ -32,8 +32,10 @@ export function AppHeader({ title, subtitle, action, showBackButton = false, bac
     navigate("/login");
   };
 
-  const isDischargeFlow = location.pathname.startsWith('/dischargeflow');
-  const isPatientCare = !isDischargeFlow && location.pathname !== '/login';
+  const isOverview = location.pathname.startsWith("/overview") || location.pathname === "/";
+  const isDischargeFlow = location.pathname.startsWith("/dischargeflow");
+  const isPatientCare =
+    location.pathname.startsWith("/patients") || location.pathname.startsWith("/patient/");
 
   const handleBack = () => {
     navigate(backButtonPath);
@@ -65,12 +67,21 @@ export function AppHeader({ title, subtitle, action, showBackButton = false, bac
     <div className="border-b bg-card shadow-sm">
       <div className="container mx-auto px-6 py-4">
         {/* Navigation Tabs */}
-        {isPatientCare || isDischargeFlow ? (
-          <div className="flex items-center gap-2 mb-4 pb-2 border-b">
+        {location.pathname !== "/login" && (
+          <div className="mb-4 flex items-center gap-2 border-b pb-2">
+            <Button
+              variant={isOverview ? "default" : "ghost"}
+              size="sm"
+              onClick={() => navigate("/overview")}
+              className={cn("gap-2", isOverview && "bg-primary text-primary-foreground")}
+            >
+              <Activity className="h-4 w-4" />
+              Overview
+            </Button>
             <Button
               variant={isPatientCare ? "default" : "ghost"}
               size="sm"
-              onClick={() => navigate("/")}
+              onClick={() => navigate("/patients")}
               className={cn("gap-2", isPatientCare && "bg-primary text-primary-foreground")}
             >
               <Users className="h-4 w-4" />
@@ -86,7 +97,7 @@ export function AppHeader({ title, subtitle, action, showBackButton = false, bac
               DischargeFlow AI
             </Button>
           </div>
-        ) : null}
+        )}
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">

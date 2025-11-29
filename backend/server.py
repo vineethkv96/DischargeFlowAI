@@ -8,7 +8,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, Dict, Any
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from enum import Enum
 
 ROOT_DIR = Path(__file__).parent
@@ -60,6 +60,14 @@ class Patient(BaseModel):
     diagnosis: Optional[str] = None
     internal_hospital_id: Optional[str] = None
     notes: Optional[str] = None
+    # Overview / bed management fields (optional for backwards compatibility)
+    ward: Optional[str] = None
+    bed: Optional[str] = None
+    readiness_score: Optional[float] = None  # 0-100
+    readmission_risk: Optional[float] = None  # 0-1
+    readmission_risk_level: Optional[str] = None  # "low" | "medium" | "high"
+    delay_reason: Optional[str] = None
+    expected_discharge_at: Optional[datetime] = None
     discharge_status: DischargeStatus = DischargeStatus.PENDING
     ready_for_discharge_eval: bool = False
     extraction_completed: bool = False
@@ -75,6 +83,13 @@ class PatientCreate(BaseModel):
     diagnosis: Optional[str] = None
     internal_hospital_id: Optional[str] = None
     notes: Optional[str] = None
+    ward: Optional[str] = None
+    bed: Optional[str] = None
+    readiness_score: Optional[float] = None
+    readmission_risk: Optional[float] = None
+    readmission_risk_level: Optional[str] = None
+    delay_reason: Optional[str] = None
+    expected_discharge_at: Optional[datetime] = None
 
 class ExtractedData(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -186,6 +201,69 @@ class AgentOutputCreate(BaseModel):
     blocked_by: Optional[List[str]] = None
     discharge_summary: Optional[Dict[str, str]] = None
 
+class OverviewKpis(BaseModel):
+    current_inpatients: int
+    pending_discharges: int
+    avg_readiness_score: Optional[float] = None
+    avg_length_of_stay_days: Optional[float] = None
+    expected_discharges_24h: int
+    high_readmission_risk: int
+
+
+class ThroughputPoint(BaseModel):
+    date: str
+    actual: int
+    target: int
+    movingAvg: float
+
+
+class TaskTrendPoint(BaseModel):
+    date: str
+    completed: int
+    outstanding: int
+
+
+class DelayReasonMetric(BaseModel):
+    reason: str
+    count: int
+    avgDelayHours: float
+
+
+class WardOccupancy(BaseModel):
+    ward: str
+    occupancy: float
+    nurseRatio: Optional[str] = None
+    expected24h: int = 0
+
+
+class OverviewPatientSummary(BaseModel):
+    id: str
+    name: str
+    age: Optional[int]
+    ward: Optional[str]
+    bed: Optional[str]
+    mrn: str
+    diagnosis: Optional[str]
+    readinessScore: Optional[float]
+    pendingTasks: int
+    lastAdmission: datetime
+    nextAction: Optional[str] = None
+    dischargeStatus: str
+    delayReason: Optional[str]
+    losDays: float
+    insuranceType: Optional[str] = None
+    attendingPhysician: Optional[str] = None
+    riskLevel: Optional[str] = None
+
+
+class OverviewResponse(BaseModel):
+    kpis: OverviewKpis
+    throughput: List[ThroughputPoint]
+    taskTrend: List[TaskTrendPoint]
+    delayReasons: List[DelayReasonMetric]
+    occupancyByWard: List[WardOccupancy]
+    patients: List[OverviewPatientSummary]
+
 # Import agent service functions
 from agent_service import run_extraction_agent, run_task_generator_agent
 
@@ -239,6 +317,253 @@ async def get_patient(patient_id: str):
         patient['updated_at'] = datetime.fromisoformat(patient['updated_at'])
     
     return patient
+
+
+@api_router.get("/overview", response_model=OverviewResponse)
+async def get_overview():
+    """
+    Aggregated overview metrics and patient list for the unified dashboard.
+    This endpoint is designed to power the frontend Overview tab.
+    """
+    try:
+        now = datetime.now(timezone.utc)
+
+        # Load discharge flow patients only (those with mrn)
+        raw_patients = await db.patients.find({"mrn": {"$exists": True}}, {"_id": 0}).to_list(2000)
+        patients: List[Patient] = []
+        for p in raw_patients:
+            # Normalize datetime fields
+            for key in ("created_at", "updated_at", "expected_discharge_at"):
+                if isinstance(p.get(key), str):
+                    try:
+                        # Handle both ISO format and other formats
+                        dt_str = p[key]
+                        if dt_str.endswith('Z'):
+                            dt_str = dt_str[:-1] + '+00:00'
+                        p[key] = datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+                    except Exception:
+                        p[key] = None
+            try:
+                patients.append(Patient(**p))
+            except Exception as e:
+                # Log but continue - skip invalid patients
+                import logging
+                logging.warning(f"Skipping invalid patient: {e}")
+                continue
+
+        patient_ids = [p.id for p in patients]
+
+        # Preload tasks to compute per-patient counts and trends
+        # Only query if we have patient IDs to avoid empty $in query
+        tasks: List[Task] = []
+        if patient_ids:
+            tasks_cursor = db.tasks.find({"patient_id": {"$in": patient_ids}}, {"_id": 0})
+            raw_tasks = await tasks_cursor.to_list(5000)
+            for t in raw_tasks:
+                for key in ("created_at", "completed_at", "deadline"):
+                    if isinstance(t.get(key), str):
+                        try:
+                            dt_str = t[key]
+                            if dt_str.endswith('Z'):
+                                dt_str = dt_str[:-1] + '+00:00'
+                            t[key] = datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+                        except Exception:
+                            t[key] = None
+                try:
+                    tasks.append(Task(**t))
+                except Exception as e:
+                    import logging
+                    logging.warning(f"Skipping invalid task: {e}")
+                    continue
+
+        # KPIs
+        current_inpatients = sum(1 for p in patients if p.discharge_status != DischargeStatus.COMPLETED)
+        pending_discharges = sum(
+            1
+            for p in patients
+            if p.discharge_status in (DischargeStatus.IN_PROGRESS, DischargeStatus.READY)
+        )
+        readiness_values = [p.readiness_score for p in patients if p.readiness_score is not None]
+        avg_readiness_score = (
+            sum(readiness_values) / len(readiness_values) if readiness_values else None
+        )
+        los_values: List[float] = []
+        for p in patients:
+            if isinstance(p.created_at, datetime):
+                los_days = (now - p.created_at).total_seconds() / 86400.0
+                los_values.append(los_days)
+        avg_length_of_stay_days = sum(los_values) / len(los_values) if los_values else None
+
+        expected_discharges_24h = 0
+        for p in patients:
+            if p.expected_discharge_at and isinstance(p.expected_discharge_at, datetime):
+                try:
+                    time_diff = (p.expected_discharge_at - now).total_seconds()
+                    if 0 <= time_diff <= 86400:
+                        expected_discharges_24h += 1
+                except Exception:
+                    continue
+
+        high_readmission_risk = sum(
+            1
+            for p in patients
+            if (p.readmission_risk is not None and p.readmission_risk >= 0.7)
+            or (p.readmission_risk_level and p.readmission_risk_level.lower() == "high")
+        )
+
+        kpis = OverviewKpis(
+            current_inpatients=current_inpatients,
+            pending_discharges=pending_discharges,
+            avg_readiness_score=avg_readiness_score,
+            avg_length_of_stay_days=avg_length_of_stay_days,
+            expected_discharges_24h=expected_discharges_24h,
+            high_readmission_risk=high_readmission_risk,
+        )
+
+        # Discharge throughput: last 30 days, based on COMPLETED patients by updated_at date
+        throughput_map: Dict[str, int] = {}
+        for p in patients:
+            if p.discharge_status == DischargeStatus.COMPLETED and isinstance(
+                p.updated_at, datetime
+            ):
+                day = p.updated_at.date().isoformat()
+                throughput_map[day] = throughput_map.get(day, 0) + 1
+
+        last_30_days = [(now.date() - timedelta(days=i)).isoformat() for i in range(29, -1, -1)]
+        throughput: List[ThroughputPoint] = []
+        moving_window: List[int] = []
+        for d in last_30_days:
+            count = throughput_map.get(d, 0)
+            moving_window.append(count)
+            if len(moving_window) > 7:
+                moving_window.pop(0)
+            moving_avg = sum(moving_window) / len(moving_window) if moving_window else 0
+            throughput.append(
+                ThroughputPoint(
+                    date=d,
+                    actual=count,
+                    target=10,
+                    movingAvg=moving_avg,
+                )
+            )
+
+        # Task completion trend: last 14 days
+        task_trend_map: Dict[str, Dict[str, int]] = {}
+        for t in tasks:
+            if not isinstance(t.created_at, datetime):
+                continue
+            day = t.created_at.date().isoformat()
+            if day not in task_trend_map:
+                task_trend_map[day] = {"completed": 0, "outstanding": 0}
+            if t.status == TaskStatus.COMPLETED:
+                task_trend_map[day]["completed"] += 1
+            else:
+                task_trend_map[day]["outstanding"] += 1
+
+        last_14_days = [(now.date() - timedelta(days=i)).isoformat() for i in range(13, -1, -1)]
+        task_trend: List[TaskTrendPoint] = []
+        for d in last_14_days:
+            entry = task_trend_map.get(d, {"completed": 0, "outstanding": 0})
+            task_trend.append(
+                TaskTrendPoint(
+                    date=d,
+                    completed=entry["completed"],
+                    outstanding=entry["outstanding"],
+                )
+            )
+
+        # Delay reasons based on patient.delay_reason
+        delay_counts: Dict[str, List[float]] = {}
+        for p in patients:
+            if not p.delay_reason:
+                continue
+            key = p.delay_reason
+            if key not in delay_counts:
+                delay_counts[key] = []
+            if isinstance(p.created_at, datetime):
+                delay_hours = (now - p.created_at).total_seconds() / 3600.0
+                delay_counts[key].append(delay_hours)
+
+        delay_reasons: List[DelayReasonMetric] = []
+        for reason, delays in delay_counts.items():
+            avg_delay = sum(delays) / len(delays) if delays else 0.0
+            delay_reasons.append(
+                DelayReasonMetric(reason=reason, count=len(delays), avgDelayHours=avg_delay)
+            )
+
+        # Ward occupancy: simple count by ward; occupancy is relative count
+        ward_counts: Dict[str, int] = {}
+        for p in patients:
+            if not p.ward:
+                continue
+            ward_counts[p.ward] = ward_counts.get(p.ward, 0) + 1
+        max_count = max(ward_counts.values()) if ward_counts else 0
+        occupancy_by_ward: List[WardOccupancy] = []
+        for ward, count in ward_counts.items():
+            occupancy_pct = float(count) / max_count * 100 if max_count > 0 else 0.0
+            expected_24 = 0
+            for p in patients:
+                if p.ward == ward and p.expected_discharge_at and isinstance(p.expected_discharge_at, datetime):
+                    try:
+                        time_diff = (p.expected_discharge_at - now).total_seconds()
+                        if 0 <= time_diff <= 86400:
+                            expected_24 += 1
+                    except Exception:
+                        continue
+            occupancy_by_ward.append(
+                WardOccupancy(
+                    ward=ward,
+                    occupancy=occupancy_pct,
+                    nurseRatio=None,
+                    expected24h=expected_24,
+                )
+            )
+
+        # Build per-patient summaries
+        tasks_by_patient: Dict[str, List[Task]] = {}
+        for t in tasks:
+            tasks_by_patient.setdefault(t.patient_id, []).append(t)
+
+        patient_summaries: List[OverviewPatientSummary] = []
+        for p in patients:
+            patient_tasks = tasks_by_patient.get(p.id, [])
+            pending_tasks = sum(1 for t in patient_tasks if t.status != TaskStatus.COMPLETED)
+            los_days = 0.0
+            if isinstance(p.created_at, datetime):
+                los_days = (now - p.created_at).total_seconds() / 86400.0
+            summary = OverviewPatientSummary(
+                id=p.id,
+                name=p.name,
+                age=p.age,
+                ward=p.ward,
+                bed=p.bed,
+                mrn=p.mrn,
+                diagnosis=p.diagnosis,
+                readinessScore=p.readiness_score,
+                pendingTasks=pending_tasks,
+                lastAdmission=p.created_at if isinstance(p.created_at, datetime) else now,
+                nextAction=None,
+                dischargeStatus=p.discharge_status.value,
+                delayReason=p.delay_reason,
+                losDays=los_days,
+                insuranceType=None,
+                attendingPhysician=None,
+                riskLevel=p.readmission_risk_level,
+            )
+            patient_summaries.append(summary)
+
+        return OverviewResponse(
+            kpis=kpis,
+            throughput=throughput,
+            taskTrend=task_trend,
+            delayReasons=delay_reasons,
+            occupancyByWard=occupancy_by_ward,
+            patients=patient_summaries,
+        )
+    except Exception as e:
+        import logging
+        logging.error(f"Error in get_overview: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error generating overview: {str(e)}")
 
 @api_router.post("/patients/{patient_id}/mark-ready")
 async def mark_patient_ready(patient_id: str, background_tasks: BackgroundTasks):

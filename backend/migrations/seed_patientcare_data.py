@@ -20,7 +20,8 @@ load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
 mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
-db_name = os.environ.get('DB_NAME', 'patientcare_db')
+# Use same DB as dischargeflow (dischargeflow_db) to keep data consistent
+db_name = os.environ.get('DB_NAME', 'dischargeflow_db')
 client = AsyncIOMotorClient(mongo_url)
 db = client[db_name]
 
@@ -185,7 +186,7 @@ async def seed_data():
             "timestamp": "2024-01-15T09:00:00",
             "actor": "Dr. Sarah Wilson",
             "actorRole": "Doctor",
-            "activity": "Patient admitted for acute bronchitis",
+            "activity": "Patient John Doe admitted for acute bronchitis",
             "type": "admission"
         },
         {
@@ -194,8 +195,26 @@ async def seed_data():
             "timestamp": "2024-01-15T09:30:00",
             "actor": "Dr. Sarah Wilson",
             "actorRole": "Doctor",
-            "activity": "Ordered Complete Blood Count and Chest X-Ray",
+            "activity": "Ordered Complete Blood Count and Chest X-Ray for John Doe",
             "type": "lab"
+        },
+        {
+            "id": "T003",
+            "patientId": "P001",
+            "timestamp": "2024-01-15T10:00:00",
+            "actor": "Dr. Sarah Wilson",
+            "actorRole": "Doctor",
+            "activity": "Prescribed Amoxicillin 500mg for John Doe",
+            "type": "medication"
+        },
+        {
+            "id": "T004",
+            "patientId": "P001",
+            "timestamp": "2024-01-15T10:30:00",
+            "actor": "Nurse Maria Garcia",
+            "actorRole": "Nurse",
+            "activity": "Vital signs recorded for John Doe: BP 130/85, Temp 100.2°F, Pulse 78",
+            "type": "note"
         }
     ]
     
@@ -220,7 +239,7 @@ async def seed_data():
             "type": "doctor",
             "author": "Dr. Sarah Wilson",
             "timestamp": "2024-01-15T10:00:00",
-            "content": "Patient presents with persistent cough and mild fever. Diagnosed with acute bronchitis. Prescribed antibiotics and rest."
+            "content": "Patient John Doe presents with persistent cough and mild fever. Diagnosed with acute bronchitis. Prescribed antibiotics and rest."
         },
         {
             "id": "N002",
@@ -228,7 +247,7 @@ async def seed_data():
             "type": "nurse",
             "author": "Nurse Maria Garcia",
             "timestamp": "2024-01-15T10:30:00",
-            "content": "Vital signs recorded: BP 130/85, Temp 100.2°F, Pulse 78. Patient comfortable and resting."
+            "content": "Vital signs recorded for John Doe: BP 130/85, Temp 100.2°F, Pulse 78. Patient comfortable and resting."
         }
     ]
     
@@ -381,11 +400,29 @@ async def seed_data():
     else:
         print("✓ All insurance records already exist")
     
+    # Verify all data is linked to P001
+    print("\nVerifying data consistency...")
+    p001_lab_tests = await db.lab_tests.count_documents({"patientId": "P001"})
+    p001_timeline = await db.timeline.count_documents({"patientId": "P001"})
+    p001_notes = await db.notes.count_documents({"patientId": "P001"})
+    p001_billing = await db.billing.count_documents({"patientId": "P001"})
+    p001_medications = await db.medications.count_documents({"patientId": "P001"})
+    p001_insurance = await db.insurance.count_documents({"patientId": "P001"})
+    
+    print(f"✓ Patient P001 (John Doe) has:")
+    print(f"  - {p001_lab_tests} lab tests")
+    print(f"  - {p001_timeline} timeline events")
+    print(f"  - {p001_notes} notes")
+    print(f"  - {p001_billing} billing items")
+    print(f"  - {p001_medications} medications")
+    print(f"  - {p001_insurance} insurance record(s)")
+    
     print("\n✅ Migration completed successfully!")
     print("\nDefault login credentials:")
     print("  Admin: admin@hospital.com / admin123")
     print("  Doctor: doctor@hospital.com / doctor123")
     print("  Nurse: nurse@hospital.com / nurse123")
+    print("\nTo view patient data, navigate to: /patient/P001")
 
 if __name__ == "__main__":
     asyncio.run(seed_data())

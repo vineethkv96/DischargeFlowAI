@@ -83,10 +83,28 @@ Return your response in the following JSON format:
 }}
 """
 
-        llm = ChatOpenAI(
-            model="gpt-4o-mini",  
-            openai_api_key=LLM_KEY,  
-        )
+        # Initialize LLM based on API key type
+        # Google API keys start with "AIza", OpenAI keys start with "sk-"
+        if LLM_KEY and LLM_KEY.startswith("AIza"):
+            try:
+                llm = ChatGoogleGenerativeAI(
+                    model="gemini-pro",
+                    google_api_key=LLM_KEY,
+                    temperature=0.3,
+                    convert_system_message_to_human=True
+                )
+                logger.info("Using Gemini LLM for extraction")
+            except Exception as e:
+                logger.error(f"Failed to initialize Gemini: {str(e)}")
+                raise
+        else:
+            # Default to OpenAI
+            llm = ChatOpenAI(
+                model="gpt-4o-mini",  
+                openai_api_key=LLM_KEY,  
+                temperature=0.3
+            )
+            logger.info("Using OpenAI LLM for extraction")
 
         # Prepare messages
         messages = [
@@ -95,8 +113,9 @@ Return your response in the following JSON format:
         ]
 
         # Send message
-        response = await llm.ainvoke(messages)  
-
+        response = await llm.ainvoke(messages)
+        llm_response_text = response.content if hasattr(response, 'content') else str(response)
+        logger.info(f"LLM extraction response: {llm_response_text[:200]}...")
 
         extracted_data = {
             "labs": {
@@ -122,7 +141,7 @@ Return your response in the following JSON format:
             "discharge_blockers": ["Awaiting pharmacy clearance"],
             "raw_data": {
                 "extraction_method": "playwright_mcp",
-                "llm_reasoning": response[:500] if response else ""
+                "llm_reasoning": llm_response_text[:500] if llm_response_text else ""
             }
         }
         

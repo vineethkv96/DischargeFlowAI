@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Patients from "./pages/Patients";
 import PatientDetails from "./pages/PatientDetails";
+import OverviewDashboard from "./pages/OverviewDashboard";
 import DischargeFlowPatients from "./pages/DischargeFlowPatients";
 import DischargeFlowDashboard from "./pages/DischargeFlowDashboard";
 import Login from "./pages/Login";
@@ -22,9 +23,18 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
+            <Route path="/" element={<Navigate to="/overview" replace />} />
             <Route path="/login" element={<Login />} />
             <Route
-              path="/"
+              path="/overview"
+              element={
+                <ProtectedRoute>
+                  <OverviewDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/patients"
               element={
                 <ProtectedRoute>
                   <Patients />
