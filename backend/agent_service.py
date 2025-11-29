@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 import logging
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 import asyncio
 from playwright.async_api import async_playwright
 
@@ -198,144 +199,259 @@ async def run_extraction_agent(patient_id: str):
 
 async def run_task_generator_agent(patient_id: str):
     """
-    AI agent that generates discharge tasks based on extracted patient data.
+    AI agent that generates discharge tasks using Google Gemini LLM.
+    Reads discharge data from output folder files and uses Gemini to create intelligent tasks.
     """
     try:
-        # Get patient and extracted data
+        # Get patient details
         patient = await db.patients.find_one({"id": patient_id}, {"_id": 0})
-        extracted_data = await db.extracted_data.find_one({"patient_id": patient_id}, {"_id": 0})
         
-        if not patient or not extracted_data:
-            logger.error(f"Missing patient or extracted data for {patient_id}")
+        if not patient:
+            logger.error(f"Patient {patient_id} not found")
             return
         
         await log_agent_action(
             patient_id,
             "task_generator_agent",
             "start_task_generation",
-            reasoning="Analyzing extracted data to generate discharge tasks"
+            reasoning="Reading discharge data from output files and using Gemini LLM to generate tasks"
         )
-
         
-        llm_task = ChatOpenAI(
-            model="gpt-4o-mini",
-            openai_api_key=LLM_KEY,
-        )
+        patient_mrn = patient.get('mrn', patient_id)
+        
+        # Define output directory path
+        output_dir = Path("/app/dischargeflow_agent_main/output")
+        
+        if not output_dir.exists():
+            logger.error(f"Output directory not found: {output_dir}")
+            return
+        
+        # Look for discharge files for this patient
+        discharge_state_file = output_dir / f"discharge_state_{patient_mrn}.json"
+        final_decision_file = output_dir / f"final_decision_{patient_mrn}.json"
+        
+        if not discharge_state_file.exists() and not final_decision_file.exists():
+            logger.warning(f"No discharge files found for patient {patient_mrn} in {output_dir}")
+            return
+        
+        # Read and parse the files
+        all_issues = []
+        discharge_decision = "UNKNOWN"
+        approved_by = []
+        blocked_by = []
+        discharge_summary = {}
+        discharge_state_data = None
+        final_decision_data = None
+        
+        # Read discharge_state file
+        if discharge_state_file.exists():
+            try:
+                with open(discharge_state_file, 'r') as f:
+                    discharge_state_data = json.load(f)
+                    all_issues.extend(discharge_state_data.get('issues', []))
+                    discharge_decision = discharge_state_data.get('final_decision', 'UNKNOWN')
+                    approved_by = discharge_state_data.get('approved_by', [])
+                    blocked_by = discharge_state_data.get('blocked_by', [])
+                    logger.info(f"Loaded discharge_state file for {patient_mrn}")
+            except Exception as e:
+                logger.error(f"Error reading discharge_state file: {str(e)}")
+        
+        # Read final_decision file (preferred source)
+        if final_decision_file.exists():
+            try:
+                with open(final_decision_file, 'r') as f:
+                    final_decision_data = json.load(f)
+                    # Use aggregated issues from final decision if available
+                    aggregated_issues = final_decision_data.get('aggregated_issues', [])
+                    if aggregated_issues:
+                        all_issues = aggregated_issues
+                    discharge_decision = final_decision_data.get('final_decision', discharge_decision)
+                    approved_by = final_decision_data.get('approved_by', approved_by)
+                    blocked_by = final_decision_data.get('blocked_by', blocked_by)
+                    discharge_summary = final_decision_data.get('discharge_summary', {})
+                    logger.info(f"Loaded final_decision file for {patient_mrn} with {len(all_issues)} issues")
+            except Exception as e:
+                logger.error(f"Error reading final_decision file: {str(e)}")
+        
+        if not all_issues:
+            logger.warning(f"No issues found in discharge files for patient {patient_mrn}")
+            return
+        
+        # Prepare patient info for Gemini
+        patient_info = {
+            "name": patient.get('name', 'Unknown'),
+            "mrn": patient.get('mrn', 'Unknown'),
+            "diagnosis": patient.get('diagnosis', 'N/A'),
+            "admission_id": patient.get('admission_id', 'N/A')
+        }
+        
+        # Create comprehensive prompt for Gemini
+        prompt = f"""You are a hospital discharge coordinator AI. Analyze the following patient discharge data and generate specific, actionable tasks.
 
-        prompt = f"""
-Analyze the following patient data and generate specific discharge tasks:
+**Patient Information:**
+- Name: {patient_info['name']}
+- MRN: {patient_info['mrn']}
+- Diagnosis: {patient_info['diagnosis']}
+- Admission ID: {patient_info['admission_id']}
 
-Patient: {patient['name']} (MRN: {patient['mrn']})
-Diagnosis: {patient.get('diagnosis', 'N/A')}
+**Discharge Decision:** {discharge_decision}
+**Approved By:** {', '.join(approved_by) if approved_by else 'None'}
+**Blocked By:** {', '.join(blocked_by) if blocked_by else 'None'}
 
-Extracted Data:
-- Pharmacy Pending: {extracted_data.get('pharmacy_pending', [])}
-- Radiology Pending: {extracted_data.get('radiology_pending', [])}
-- Billing Pending: {extracted_data.get('billing_pending', {})}
-- Discharge Blockers: {extracted_data.get('discharge_blockers', [])}
-- Doctor Notes: {extracted_data.get('doctor_notes', [])}
+**Issues Identified by AI Agents:**
+{json.dumps(all_issues, indent=2)}
 
-Generate tasks in these categories:
-1. MEDICAL: Labs, radiology, treatments, doctor clearance
-2. OPERATIONAL: Nursing checklist, pharmacy fulfillment, transport
-3. FINANCIAL: Billing, insurance, approvals
+**Discharge Summary:**
+{json.dumps(discharge_summary, indent=2)}
 
-For each task, provide:
-- title: Brief task name
-- description: Detailed description
-- category: medical/operational/financial
-- priority: low/medium/high/critical
+**Your Task:**
+Generate a comprehensive list of discharge tasks based on the issues identified. Each task should be:
+1. Specific and actionable
+2. Properly categorized (medical/operational/financial)
+3. Appropriately prioritized (critical/high/medium/low)
+4. Include detailed description with context from the issues
 
-Return as JSON array:
+**Task Categories:**
+- **medical**: Labs, radiology, treatments, doctor clearance, clinical assessments
+- **operational**: Nursing checklist, pharmacy fulfillment, transport, bed management
+- **financial**: Billing, insurance, payment clearance, financial approvals
+
+**Priority Levels:**
+- **critical**: Immediate action required, blocks discharge
+- **high**: Important, should be resolved soon
+- **medium**: Should be addressed but not urgent
+- **low**: Nice to have, can be resolved later
+
+**Output Format:**
+Return ONLY a valid JSON array of tasks. Each task must have:
+- title: Brief, clear task name
+- description: Detailed description including issue context, what needs to be done, and why
+- category: One of: medical, operational, financial
+- priority: One of: critical, high, medium, low
+- agent: The agent that identified this issue
+- issue_code: The issue code from the agent
+
+Example:
 [
   {{
-    "title": "Task name",
-    "description": "Details",
-    "category": "medical",
-    "priority": "high"
+    "title": "Resolve Insurance Coverage Discrepancy",
+    "description": "[INS_PARTIAL_COVERAGE] Despite an approved pre-authorization for ₹500,000, insurance has covered ₹0 of the ₹400,000 bill. Contact Red Insurance immediately to investigate why the approved pre-authorization is not being honored.",
+    "category": "financial",
+    "priority": "critical",
+    "agent": "Insurance",
+    "issue_code": "INS_PARTIAL_COVERAGE"
   }}
 ]
-"""
-        
 
-        messages_task = [
-            SystemMessage(content="You are a hospital discharge coordinator. Generate specific, actionable tasks based on patient data."),
-            HumanMessage(content=prompt),
-        ]   
+Generate tasks now:"""
 
-        response_task = await llm_task.ainvoke(messages_task)
-        tasks_json = response_task.content  # this should be a JSON array (as string)
-
-
-        # user_message = UserMessage(text=prompt)
-        # response = await chat.send_message(user_message)
+        # Initialize Gemini LLM
+        try:
+            llm = ChatGoogleGenerativeAI(
+                model="gemini-pro",
+                google_api_key=LLM_KEY,
+                temperature=0.3,
+                convert_system_message_to_human=True
+            )
+            logger.info("Initialized Gemini LLM")
+        except Exception as e:
+            logger.warning(f"Failed to initialize Gemini, falling back to OpenAI: {str(e)}")
+            llm = ChatOpenAI(
+                model="gpt-4o-mini",
+                openai_api_key=LLM_KEY,
+                temperature=0.3
+            )
         
-        # Parse generated tasks (in production, parse the JSON response)
-        # For MVP, create sample tasks based on extracted data
-        tasks = []
+        # Prepare messages
+        messages = [
+            SystemMessage(content="You are a hospital discharge coordinator AI. Generate specific, actionable discharge tasks in JSON format."),
+            HumanMessage(content=prompt)
+        ]
         
-        # Medical tasks
-        if extracted_data.get('radiology_pending'):
-            tasks.append({
-                "title": "Complete Pending Radiology",
-                "description": f"Pending radiology: {', '.join(extracted_data['radiology_pending'])}",
-                "category": "medical",
-                "priority": "high"
-            })
+        # Call LLM
+        logger.info(f"Calling Gemini LLM to generate tasks for patient {patient_mrn}")
+        response = await llm.ainvoke(messages)
         
-        tasks.append({
-            "title": "Doctor Discharge Clearance",
-            "description": "Obtain final discharge approval from attending physician",
-            "category": "medical",
-            "priority": "critical"
-        })
+        # Parse LLM response
+        llm_response_text = response.content
+        logger.info(f"Received response from LLM: {llm_response_text[:200]}...")
         
-        # Operational tasks
-        if extracted_data.get('pharmacy_pending'):
-            tasks.append({
-                "title": "Pharmacy Fulfillment",
-                "description": f"Process pending medications: {', '.join(extracted_data['pharmacy_pending'])}",
-                "category": "operational",
-                "priority": "high"
-            })
+        # Extract JSON from response
+        try:
+            # Try to find JSON array in response
+            start_idx = llm_response_text.find('[')
+            end_idx = llm_response_text.rfind(']') + 1
+            
+            if start_idx != -1 and end_idx > start_idx:
+                json_str = llm_response_text[start_idx:end_idx]
+                tasks_from_llm = json.loads(json_str)
+            else:
+                # If no JSON array found, try parsing entire response
+                tasks_from_llm = json.loads(llm_response_text)
+            
+            logger.info(f"Successfully parsed {len(tasks_from_llm)} tasks from LLM response")
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse LLM response as JSON: {str(e)}")
+            logger.error(f"LLM response was: {llm_response_text}")
+            
+            # Fallback: Create tasks directly from issues
+            logger.warning("Falling back to direct issue-to-task mapping")
+            tasks_from_llm = []
+            
+            severity_to_priority = {
+                "critical": "critical",
+                "high": "high",
+                "medium": "medium",
+                "low": "low"
+            }
+            
+            agent_to_category = {
+                "Insurance": "financial",
+                "Pharmacy": "operational",
+                "Lab": "medical",
+                "Bed Management": "financial",
+                "Ambulance": "operational"
+            }
+            
+            for issue in all_issues:
+                task = {
+                    "title": issue.get('title', 'Unknown Issue'),
+                    "description": f"[{issue.get('code', 'N/A')}] {issue.get('message', '')}\n\nSuggested Action: {issue.get('suggested_action', '')}",
+                    "category": agent_to_category.get(issue.get('agent', 'Unknown'), "operational"),
+                    "priority": severity_to_priority.get(issue.get('severity', 'medium'), "medium"),
+                    "agent": issue.get('agent', 'Unknown'),
+                    "issue_code": issue.get('code', '')
+                }
+                tasks_from_llm.append(task)
         
-        tasks.append({
-            "title": "Nursing Discharge Checklist",
-            "description": "Complete discharge education and documentation",
-            "category": "operational",
-            "priority": "medium"
-        })
-        
-        # Financial tasks
-        billing_pending = extracted_data.get('billing_pending', {})
-        if billing_pending.get('amount', 0) > 0:
-            tasks.append({
-                "title": "Clear Pending Bills",
-                "description": f"Outstanding amount: ${billing_pending.get('amount', 0)}",
-                "category": "financial",
-                "priority": "high"
-            })
-        
-        # Insert tasks into database
-        for task_data in tasks:
+        # Insert tasks into MongoDB
+        for idx, task_data in enumerate(tasks_from_llm):
             task_doc = {
-                "id": f"task_{patient_id}_{int(datetime.now(timezone.utc).timestamp())}_{len(tasks)}",
+                "id": f"task_{patient_id}_{int(datetime.now(timezone.utc).timestamp())}_{idx}",
                 "patient_id": patient_id,
                 "status": "pending",
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 "completed_at": None,
                 "deadline": None,
                 "assigned_to": None,
-                **task_data
+                "title": task_data.get('title', 'Untitled Task'),
+                "description": task_data.get('description', ''),
+                "category": task_data.get('category', 'operational'),
+                "priority": task_data.get('priority', 'medium'),
+                "agent": task_data.get('agent', 'Unknown'),
+                "issue_code": task_data.get('issue_code', '')
             }
             await db.tasks.insert_one(task_doc)
         
         # Update patient status
+        final_discharge_status = "ready" if discharge_decision == "APPROVE" else "blocked"
+        
         await db.patients.update_one(
             {"id": patient_id},
             {"$set": {
                 "tasks_generated": True,
-                "discharge_status": "ready" if len(extracted_data.get('discharge_blockers', [])) == 0 else "blocked",
+                "discharge_status": final_discharge_status,
+                "discharge_decision": discharge_decision,
                 "updated_at": datetime.now(timezone.utc).isoformat()
             }}
         )
@@ -344,14 +460,25 @@ Return as JSON array:
             patient_id,
             "task_generator_agent",
             "tasks_generated",
-            reasoning=f"Generated {len(tasks)} discharge tasks",
-            result={"task_count": len(tasks), "llm_response": response[:200] if response else ""}
+            reasoning=f"Generated {len(tasks_from_llm)} discharge tasks using Gemini LLM from output files",
+            result={
+                "task_count": len(tasks_from_llm),
+                "discharge_status": discharge_decision,
+                "source": "output_files",
+                "llm_used": "gemini" if "gemini" in str(type(llm)).lower() else "openai",
+                "files_processed": [
+                    str(discharge_state_file.name) if discharge_state_file.exists() else None,
+                    str(final_decision_file.name) if final_decision_file.exists() else None
+                ]
+            }
         )
         
-        logger.info(f"Generated {len(tasks)} tasks for patient {patient_id}")
+        logger.info(f"Generated {len(tasks_from_llm)} tasks for patient {patient_id} using Gemini LLM from output files")
         
     except Exception as e:
         logger.error(f"Error in task generator agent: {str(e)}")
+        import traceback
+        traceback.print_exc()
         await log_agent_action(
             patient_id,
             "task_generator_agent",

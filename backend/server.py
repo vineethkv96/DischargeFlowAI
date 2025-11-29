@@ -143,6 +143,49 @@ class PatientDashboard(BaseModel):
     tasks: List[Task]
     agent_logs: List[AgentLog]
 
+# Agent Output Models
+class AgentIssue(BaseModel):
+    """Individual issue identified by an agent"""
+    model_config = ConfigDict(extra="ignore")
+    
+    code: str
+    title: str
+    severity: str  # critical, high, medium, low
+    message: str
+    suggested_action: str
+    evidence: Optional[List[str]] = None
+    data: Optional[Dict[str, Any]] = None
+    agent: Optional[str] = None
+
+class AgentOutputData(BaseModel):
+    """Complete agent output data stored in MongoDB"""
+    model_config = ConfigDict(extra="ignore")
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    patient_id: str
+    patient_mrn: str
+    discharge_state: Optional[Dict[str, Any]] = None
+    final_decision: Optional[Dict[str, Any]] = None
+    aggregated_issues: List[AgentIssue] = []
+    discharge_decision: str  # APPROVE, HOLD, etc.
+    approved_by: List[str] = []
+    blocked_by: List[str] = []
+    discharge_summary: Optional[Dict[str, str]] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class AgentOutputCreate(BaseModel):
+    """Model for creating new agent output"""
+    patient_id: str
+    patient_mrn: str
+    discharge_state: Optional[Dict[str, Any]] = None
+    final_decision: Optional[Dict[str, Any]] = None
+    aggregated_issues: Optional[List[Dict[str, Any]]] = None
+    discharge_decision: str
+    approved_by: Optional[List[str]] = None
+    blocked_by: Optional[List[str]] = None
+    discharge_summary: Optional[Dict[str, str]] = None
+
 # Import agent service functions
 from agent_service import run_extraction_agent, run_task_generator_agent
 

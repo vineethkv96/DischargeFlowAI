@@ -1,0 +1,27 @@
+{
+  "department": "Transport Services",
+  "patient_id": "P00231",
+  "alerts": [
+    {
+      "alert_id": "ALERT-P00231-TRA-009",
+      "patient_id": "P00231",
+      "department": "Transport Services",
+      "priority": "normal",
+      "issue_code": "TRANSPORT_REQUIRED",
+      "issue_title": "Ambulance Transport Required",
+      "message": "Patient has Liver Cancer and Excess Panting, requiring medical supervision and monitoring during transport. An ALS ambulance is recommended.",
+      "suggested_action": "Book an ALS ambulance for the patient.",
+      "evidence": [],
+      "data": {
+        "patient_diagnosis": "Liver Cancer",
+        "existing_conditions": "Excess Panting",
+        "recommended_type": "ALS"
+      },
+      "escalated_at": "2025-11-29T09:08:06.728771",
+      "status": "pending"
+    }
+  ],
+  "total_alerts": 1,
+  "highest_priority": "normal",
+  "generated_at": "2025-11-29T09:08:06.736388"
+}
