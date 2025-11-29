@@ -1,0 +1,77 @@
+{
+  "patient_id": "P00231",
+  "notifications": [
+    {
+      "priority": "urgent",
+      "title": "Insurance Not Honoring Approved Pre-authorization",
+      "message": "Please contact the insurance desk regarding: Insurance Not Honoring Approved Pre-authorization",
+      "action_required": "Immediately contact Red INsurance to clarify why the approved pre-authorization is not being honored and why no amount has been covered. Review the claim submission details against the pre-authorization conditions and approved procedures to identify any discrepancies or unmet requirements.",
+      "department": "Insurance Desk"
+    },
+    {
+      "priority": "high",
+      "title": "Financial Data Inconsistency",
+      "message": "There is an inconsistency in the provided financial details: The Total Hospital Bill (₹400,000.00) minus the Amount Covered by Insurance (₹0.00) implies a patient responsibility of ₹400,000.00. However, the Patient's Balance is stated as ₹350,000.00. This discrepancy of ₹50,000.00 needs clarification.",
+      "action_required": "Verify the exact patient responsibility and any payments already made by the patient or other sources to reconcile the total bill with the stated patient's balance.",
+      "department": "General Operations"
+    },
+    {
+      "priority": "urgent",
+      "title": "Medication Order Pending Dispense",
+      "message": "Your medication medication order pending dispense requires action.",
+      "action_required": "Follow up immediately with the pharmacy to expedite the dispensing of Jondise.",
+      "department": "Pharmacy Portal"
+    },
+    {
+      "priority": "urgent",
+      "title": "New Discharge Medication Order Missing/Pending",
+      "message": "Your medication new discharge medication order missing/pending requires action.",
+      "action_required": "Initiate a pharmacy order for Insulin Glargine and ensure it is filled and dispensed prior to discharge.",
+      "department": "Pharmacy Portal"
+    },
+    {
+      "priority": "high",
+      "title": "Medication-Allergy Conflict Identified",
+      "message": "Your medication medication-allergy conflict identified requires action.",
+      "action_required": "Review the Dolo-Crosine prescription with the prescribing physician. Consider an alternative analgesic or a lower, liver-safe dosage with close monitoring of liver function.",
+      "department": "Pharmacy Portal"
+    },
+    {
+      "priority": "urgent",
+      "title": "Final Invoice Not Generated",
+      "message": "There is a billing matter that needs your attention: The final invoice for patient P00231 has not yet been generated. Discharge cannot proceed without a finalized bill.",
+      "action_required": "Generate the final invoice immediately and ensure all charges are accurately reflected. This is a critical blocker for discharge.",
+      "department": "Billing Portal"
+    },
+    {
+      "priority": "urgent",
+      "title": "Required Chest X-Ray is Pending",
+      "message": "Your required chest x-ray is pending needs attention. Please contact the lab.",
+      "action_required": "Expedite completion of the Chest X-Ray and review results immediately.",
+      "department": "Lab Portal"
+    },
+    {
+      "priority": "urgent",
+      "title": "Critical RBC Value in Complete Blood Count",
+      "message": "Your critical rbc value in complete blood count needs attention. Please contact the lab.",
+      "action_required": "Review RBC results with a physician and determine appropriate medical intervention before discharge. Further investigation into the cause of low RBC may be necessary.",
+      "department": "Lab Portal"
+    },
+    {
+      "priority": "urgent",
+      "title": "Critical Platelets Value in Complete Blood Count",
+      "message": "Your critical platelets value in complete blood count needs attention. Please contact the lab.",
+      "action_required": "Review Platelets results with a physician and determine appropriate medical intervention before discharge. Further investigation into the cause of high Platelets may be necessary.",
+      "department": "Lab Portal"
+    },
+    {
+      "priority": "urgent",
+      "title": "Critical Hemoglobin Value in Complete Blood Count",
+      "message": "Your critical hemoglobin value in complete blood count needs attention. Please contact the lab.",
+      "action_required": "Review Hemoglobin results with a physician and determine appropriate medical intervention before discharge. Further investigation into the cause of low Hemoglobin may be necessary.",
+      "department": "Lab Portal"
+    }
+  ],
+  "total_notifications": 10,
+  "generated_at": "2025-11-29T09:08:06.739728"
+}

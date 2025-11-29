@@ -1,0 +1,33 @@
+{
+  "department": "Insurance Desk",
+  "patient_id": "P00231",
+  "alerts": [
+    {
+      "alert_id": "ALERT-P00231-INS-001",
+      "patient_id": "P00231",
+      "department": "Insurance Desk",
+      "priority": "urgent",
+      "issue_code": "INS_PARTIAL_COVERAGE",
+      "issue_title": "Insurance Not Honoring Approved Pre-authorization",
+      "message": "Despite an approved pre-authorization (PA-2024-00231) for ₹500,000.00, the insurance company has covered ₹0.00 of the ₹400,000.00 hospital bill. This indicates a significant issue with claim processing or coverage application, leaving the patient with a substantial balance.",
+      "suggested_action": "Immediately contact Red INsurance to clarify why the approved pre-authorization is not being honored and why no amount has been covered. Review the claim submission details against the pre-authorization conditions and approved procedures to identify any discrepancies or unmet requirements.",
+      "evidence": [
+        "preauth_status: approved",
+        "preauth_approved_amount: 500000.0",
+        "total_hospital_bill: 400000.0",
+        "amount_covered_by_insurance: 0.0"
+      ],
+      "data": {
+        "preauth_id": "PA-2024-00231",
+        "approved_amount": 500000.0,
+        "bill_amount": 400000.0,
+        "covered_amount": 0.0
+      },
+      "escalated_at": "2025-11-29T09:08:06.728649",
+      "status": "pending"
+    }
+  ],
+  "total_alerts": 1,
+  "highest_priority": "urgent",
+  "generated_at": "2025-11-29T09:08:06.728855"
+}

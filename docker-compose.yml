@@ -14,11 +14,32 @@ services:
       timeout: 5s
       retries: 5
 
+  dischargeflow_agent_main:
+    build: ./dischargeflow_agent_main
+    container_name: dischargeflow_agent_main
+    ports:
+      - "8000:8000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      MONGO_URL: "mongodb://mongo:27017"
+      DB_NAME: "dischargeflow_db"
+      JWT_SECRET_KEY: "patientcare-hub-secret-key-change-in-production"
+      CORS_ORIGINS: "http://localhost:8080,http://localhost:3000,http://localhost:5173"
+      ACCESS_TOKEN_EXPIRE_MINUTES: "480"
+    env_file:
+      - ./dischargeflow_agent_main/.env
+    restart: unless-stopped
+    volumes:
+      - ./dischargeflow_agent_main:/app
+    command: uvicorn server:app --host 0.0.0.0 --port 8000 --reload
+
   backend:
     build: ./backend
     container_name: discharge_backend
     ports:
-      - "8000:8000"
+      - "8001:8000"
     depends_on:
       mongo:
         condition: service_healthy
@@ -33,6 +54,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./backend:/app
+      - ./dischargeflow_agent_main:/app/dischargeflow_agent_main
     command: uvicorn server:app --host 0.0.0.0 --port 8000 --reload
 
   frontend:
