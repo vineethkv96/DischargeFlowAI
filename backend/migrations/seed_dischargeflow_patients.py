@@ -39,7 +39,7 @@ async def seed_dischargeflow_patients():
         {
             "id": "DF-P001",
             "mrn": "DF-MRN-001",
-            "name": "John Doe",
+            "name": "JohnDoe",
             "age": 45,
             "admission_id": "ADM-1001",
             "diagnosis": "Acute decompensated heart failure",
@@ -109,17 +109,17 @@ async def seed_dischargeflow_patients():
 
     inserted = 0
     for patient in patients:
-        existing = await db.patients.find_one(
+        existing = db.patients.find_one(
             {"$or": [{"id": patient["id"]}, {"mrn": patient["mrn"]}]}
         )
         if existing:
             continue
 
-        await db.patients.insert_one(patient)
+        db.patients.insert_one(patient)
         inserted += 1
 
     print(f"✓ Inserted {inserted} DischargeFlow patients (others already existed).")
-    await client.close()
+    client.close()
     print("✅ DischargeFlow seed migration completed.")
 
 

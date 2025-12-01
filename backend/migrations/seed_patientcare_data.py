@@ -186,7 +186,7 @@ async def seed_data():
             "timestamp": "2024-01-15T09:00:00",
             "actor": "Dr. Sarah Wilson",
             "actorRole": "Doctor",
-            "activity": "Patient John Doe admitted for acute bronchitis",
+            "activity": "Patient JohnDoe admitted for acute bronchitis",
             "type": "admission"
         },
         {
@@ -195,7 +195,7 @@ async def seed_data():
             "timestamp": "2024-01-15T09:30:00",
             "actor": "Dr. Sarah Wilson",
             "actorRole": "Doctor",
-            "activity": "Ordered Complete Blood Count and Chest X-Ray for John Doe",
+            "activity": "Ordered Complete Blood Count and Chest X-Ray for JohnDoe",
             "type": "lab"
         },
         {
@@ -204,7 +204,7 @@ async def seed_data():
             "timestamp": "2024-01-15T10:00:00",
             "actor": "Dr. Sarah Wilson",
             "actorRole": "Doctor",
-            "activity": "Prescribed Amoxicillin 500mg for John Doe",
+            "activity": "Prescribed Amoxicillin 500mg for JohnDoe",
             "type": "medication"
         },
         {
@@ -213,7 +213,7 @@ async def seed_data():
             "timestamp": "2024-01-15T10:30:00",
             "actor": "Nurse Maria Garcia",
             "actorRole": "Nurse",
-            "activity": "Vital signs recorded for John Doe: BP 130/85, Temp 100.2°F, Pulse 78",
+            "activity": "Vital signs recorded for JohnDoe: BP 130/85, Temp 100.2°F, Pulse 78",
             "type": "note"
         }
     ]
@@ -239,7 +239,7 @@ async def seed_data():
             "type": "doctor",
             "author": "Dr. Sarah Wilson",
             "timestamp": "2024-01-15T10:00:00",
-            "content": "Patient John Doe presents with persistent cough and mild fever. Diagnosed with acute bronchitis. Prescribed antibiotics and rest."
+            "content": "Patient JohnDoe presents with persistent cough and mild fever. Diagnosed with acute bronchitis. Prescribed antibiotics and rest."
         },
         {
             "id": "N002",
@@ -247,7 +247,7 @@ async def seed_data():
             "type": "nurse",
             "author": "Nurse Maria Garcia",
             "timestamp": "2024-01-15T10:30:00",
-            "content": "Vital signs recorded for John Doe: BP 130/85, Temp 100.2°F, Pulse 78. Patient comfortable and resting."
+            "content": "Vital signs recorded for JohnDoe: BP 130/85, Temp 100.2°F, Pulse 78. Patient comfortable and resting."
         }
     ]
     
@@ -409,7 +409,7 @@ async def seed_data():
     p001_medications = await db.medications.count_documents({"patientId": "P001"})
     p001_insurance = await db.insurance.count_documents({"patientId": "P001"})
     
-    print(f"✓ Patient P001 (John Doe) has:")
+    print(f"✓ Patient P001 (JohnDoe) has:")
     print(f"  - {p001_lab_tests} lab tests")
     print(f"  - {p001_timeline} timeline events")
     print(f"  - {p001_notes} notes")

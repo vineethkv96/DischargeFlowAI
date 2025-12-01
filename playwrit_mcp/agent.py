@@ -20,10 +20,11 @@ import sniffio
 
 # --- 1. CONFIGURATION ---
 
-# IMPORTANT: Replace with your actual Gemini API key.
-# For security, you should set this as an environment variable (GEMINI_API_KEY)
-# and retrieve it using os.getenv("GEMINI_API_KEY")
-GOOGLE_API_KEY = "AIzaSyAXy-RbiG_v6rzSktQjxtaJC_Spxq1nLNM" # <--- REPLACE THIS LINE!
+# IMPORTANT: Set your Gemini API key as an environment variable
+# export GEMINI_API_KEY="your-actual-api-key-here"
+GOOGLE_API_KEY = os.getenv("GEMINI_API_KEY")
+if not GOOGLE_API_KEY:
+    raise ValueError("GEMINI_API_KEY environment variable is not set. Please set it with: export GEMINI_API_KEY='your-key-here'")
 configure(api_key=GOOGLE_API_KEY)
 
 # Define the command to run the Playwright MCP Server in HEADLESS (default) mode.
@@ -41,7 +42,7 @@ server_params = StdioServerParameters(
 app = FastAPI()
 
 class AgentRequest(BaseModel):
-    promty: str
+    prompt: str
     expected_output: str
 
 def clean_schema_recursively(data):
@@ -107,7 +108,7 @@ async def run_agent(prompt: str) -> str:
                 # 3. Configure the Gemini Model with the cleaned tools
                 model = GenerativeModel(
                     # Use the correct, officially supported model identifier.
-                    model_name='gemini-2.0-flash-001', # <--- CHANGE MODEL NAME HERE
+                    model_name='gemini-2.5-flash', # <--- CHANGE MODEL NAME HERE
                     tools=[gemini_tools]
                 )
                 chat = model.start_chat()
@@ -166,9 +167,18 @@ async def run_agent(prompt: str) -> str:
                 # 7. Final natural language response from Gemini
                 print("\n✅ TASK COMPLETE. Final Report:")
                 print("----------------------------------")
-                print(response.text)
+                # Safe text extraction for Python 3.14 compatibility
+                try:
+                    final_text = response.text
+                except (AttributeError, Exception) as text_error:
+                    # Fallback: extract text from parts directly
+                    try:
+                        final_text = response.candidates[0].content.parts[0].text
+                    except:
+                        final_text = str(response.candidates[0].content.parts[0])
+                print(final_text)
                 print("----------------------------------")
-                return response.text
+                return final_text
     except Exception as e:
         print(f"CRITICAL ERROR in run_agent: {e}")
         traceback.print_exc()

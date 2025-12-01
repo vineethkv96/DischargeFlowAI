@@ -1,0 +1,30 @@
+{
+  "department": "Transport Services",
+  "patient_id": "5c965cbb-3c46-4cd6-932d-eb775db6b634",
+  "alerts": [
+    {
+      "alert_id": "ALERT-5c965cbb-3c46-4cd6-932d-eb775db6b634-TRA-003",
+      "patient_id": "5c965cbb-3c46-4cd6-932d-eb775db6b634",
+      "department": "Transport Services",
+      "priority": "normal",
+      "issue_code": "TRANSPORT_REQUIRED",
+      "issue_title": "Ambulance Transport Recommended",
+      "message": "Patient with liver cancer should have ambulance transport arranged",
+      "suggested_action": "Book Wheelchair from MedTransport Services (ETA: 20 min, Cost: ₹1200)",
+      "evidence": [
+        "data/transport_providers.json#providers"
+      ],
+      "data": {
+        "provider": "MedTransport Services",
+        "vehicle": "Wheelchair",
+        "eta": 20,
+        "cost": 1200
+      },
+      "escalated_at": "2025-12-01T03:56:39.616309",
+      "status": "pending"
+    }
+  ],
+  "total_alerts": 1,
+  "highest_priority": "normal",
+  "generated_at": "2025-12-01T03:56:39.617808"
+}

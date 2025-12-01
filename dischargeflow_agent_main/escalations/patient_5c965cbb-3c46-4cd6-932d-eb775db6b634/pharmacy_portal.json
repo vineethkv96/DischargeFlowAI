@@ -1,0 +1,46 @@
+{
+  "department": "Pharmacy Portal",
+  "patient_id": "5c965cbb-3c46-4cd6-932d-eb775db6b634",
+  "alerts": [
+    {
+      "alert_id": "ALERT-5c965cbb-3c46-4cd6-932d-eb775db6b634-PHA-001",
+      "patient_id": "5c965cbb-3c46-4cd6-932d-eb775db6b634",
+      "department": "Pharmacy Portal",
+      "priority": "high",
+      "issue_code": "PHARM_ORDER_PENDING",
+      "issue_title": "Pending Medication Order",
+      "message": "Medication 'Jondise' order is pending dispense",
+      "suggested_action": "Dispense medication before discharge",
+      "evidence": [
+        "data/pharmacy_inventory.json#active_orders[RX-002]"
+      ],
+      "data": {
+        "order_id": "RX-002",
+        "medication": "Jondise"
+      },
+      "escalated_at": "2025-12-01T03:56:39.616284",
+      "status": "pending"
+    },
+    {
+      "alert_id": "ALERT-5c965cbb-3c46-4cd6-932d-eb775db6b634-PHA-002",
+      "patient_id": "5c965cbb-3c46-4cd6-932d-eb775db6b634",
+      "department": "Pharmacy Portal",
+      "priority": "normal",
+      "issue_code": "PHARM_PAYMENT_PENDING",
+      "issue_title": "Discharge Medication Payment Required",
+      "message": "Patient needs to pay ₹4450.0 for discharge medications",
+      "suggested_action": "Collect ₹4450.0 from patient/family before discharge",
+      "evidence": [
+        "data/pharmacy_inventory.json#total_discharge_medication_cost"
+      ],
+      "data": {
+        "amount": 4450.0
+      },
+      "escalated_at": "2025-12-01T03:56:39.616302",
+      "status": "pending"
+    }
+  ],
+  "total_alerts": 2,
+  "highest_priority": "high",
+  "generated_at": "2025-12-01T03:56:39.616374"
+}

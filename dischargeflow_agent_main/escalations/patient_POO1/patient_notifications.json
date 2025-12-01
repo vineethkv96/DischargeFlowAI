@@ -1,0 +1,56 @@
+{
+  "patient_id": "POO1",
+  "notifications": [
+    {
+      "priority": "high",
+      "title": "Pending Medication Order",
+      "message": "Your medication pending medication order requires action.",
+      "action_required": "Dispense medication before discharge",
+      "department": "Pharmacy Portal"
+    },
+    {
+      "priority": "high",
+      "title": "Final Invoice Not Generated",
+      "message": "There is a billing matter that needs your attention: Invoice status: pending",
+      "action_required": "Generate final invoice via Billing UI before discharge",
+      "department": "Billing Portal"
+    },
+    {
+      "priority": "high",
+      "title": "Payment Required Before Discharge",
+      "message": "There is a billing matter that needs your attention: Patient needs to pay ₹27500.0 before discharge",
+      "action_required": "Collect ₹27500.0 from patient/family",
+      "department": "Billing Portal"
+    },
+    {
+      "priority": "urgent",
+      "title": "Critical Value: RBC",
+      "message": "Your critical value: rbc needs attention. Please contact the lab.",
+      "action_required": "Consult physician before discharge - critical lab value requires review",
+      "department": "Lab Portal"
+    },
+    {
+      "priority": "urgent",
+      "title": "Critical Value: Platelets",
+      "message": "Your critical value: platelets needs attention. Please contact the lab.",
+      "action_required": "Consult physician before discharge - critical lab value requires review",
+      "department": "Lab Portal"
+    },
+    {
+      "priority": "urgent",
+      "title": "Critical Value: Hemoglobin",
+      "message": "Your critical value: hemoglobin needs attention. Please contact the lab.",
+      "action_required": "Consult physician before discharge - critical lab value requires review",
+      "department": "Lab Portal"
+    },
+    {
+      "priority": "high",
+      "title": "Pending Test: Chest X-Ray",
+      "message": "Your pending test: chest x-ray needs attention. Please contact the lab.",
+      "action_required": "Wait for test completion or expedite processing",
+      "department": "Lab Portal"
+    }
+  ],
+  "total_notifications": 7,
+  "generated_at": "2025-12-01T03:48:11.463384"
+}

@@ -527,6 +527,7 @@ async def create_patient(patient_data: PatientCreate, current_user: TokenData = 
     
     patient = Patient(id=patient_id, **patient_data.model_dump())
     patient_dict = patient.model_dump()
+    patient_dict["id"] = patient_id
     patient_dict["createdAt"] = datetime.now(timezone.utc).isoformat()
     patient_dict["updatedAt"] = datetime.now(timezone.utc).isoformat()
     

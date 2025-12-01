@@ -1,0 +1,90 @@
+{
+  "department": "Lab Portal",
+  "patient_id": "5c965cbb-3c46-4cd6-932d-eb775db6b634",
+  "alerts": [
+    {
+      "alert_id": "ALERT-5c965cbb-3c46-4cd6-932d-eb775db6b634-LAB-006",
+      "patient_id": "5c965cbb-3c46-4cd6-932d-eb775db6b634",
+      "department": "Lab Portal",
+      "priority": "urgent",
+      "issue_code": "LAB_CRITICAL_VALUE",
+      "issue_title": "Critical Value: RBC",
+      "message": "RBC = 2.8 10^6/uL (Reference: 4.5-5.9)",
+      "suggested_action": "Consult physician before discharge - critical lab value requires review",
+      "evidence": [
+        "data/lab_results.json#results[LAB-001].components"
+      ],
+      "data": {
+        "test": "Complete Blood Count",
+        "component": "RBC",
+        "value": 2.8,
+        "threshold": 3.0
+      },
+      "escalated_at": "2025-12-01T03:56:39.616321",
+      "status": "pending"
+    },
+    {
+      "alert_id": "ALERT-5c965cbb-3c46-4cd6-932d-eb775db6b634-LAB-007",
+      "patient_id": "5c965cbb-3c46-4cd6-932d-eb775db6b634",
+      "department": "Lab Portal",
+      "priority": "urgent",
+      "issue_code": "LAB_CRITICAL_VALUE",
+      "issue_title": "Critical Value: Platelets",
+      "message": "Platelets = 960 10^3/uL (Reference: 150-400)",
+      "suggested_action": "Consult physician before discharge - critical lab value requires review",
+      "evidence": [
+        "data/lab_results.json#results[LAB-001].components"
+      ],
+      "data": {
+        "test": "Complete Blood Count",
+        "component": "Platelets",
+        "value": 960,
+        "threshold": 450
+      },
+      "escalated_at": "2025-12-01T03:56:39.616327",
+      "status": "pending"
+    },
+    {
+      "alert_id": "ALERT-5c965cbb-3c46-4cd6-932d-eb775db6b634-LAB-008",
+      "patient_id": "5c965cbb-3c46-4cd6-932d-eb775db6b634",
+      "department": "Lab Portal",
+      "priority": "urgent",
+      "issue_code": "LAB_CRITICAL_VALUE",
+      "issue_title": "Critical Value: Hemoglobin",
+      "message": "Hemoglobin = 8.2 g/dL (Reference: 13.5-17.5)",
+      "suggested_action": "Consult physician before discharge - critical lab value requires review",
+      "evidence": [
+        "data/lab_results.json#results[LAB-001].components"
+      ],
+      "data": {
+        "test": "Complete Blood Count",
+        "component": "Hemoglobin",
+        "value": 8.2,
+        "threshold": 10.0
+      },
+      "escalated_at": "2025-12-01T03:56:39.616333",
+      "status": "pending"
+    },
+    {
+      "alert_id": "ALERT-5c965cbb-3c46-4cd6-932d-eb775db6b634-LAB-009",
+      "patient_id": "5c965cbb-3c46-4cd6-932d-eb775db6b634",
+      "department": "Lab Portal",
+      "priority": "high",
+      "issue_code": "LAB_PENDING",
+      "issue_title": "Pending Test: Chest X-Ray",
+      "message": "Test 'Chest X-Ray' is still pending",
+      "suggested_action": "Wait for test completion or expedite processing",
+      "evidence": [
+        "data/lab_results.json#results[LAB-002]"
+      ],
+      "data": {
+        "test_id": "LAB-002"
+      },
+      "escalated_at": "2025-12-01T03:56:39.616338",
+      "status": "pending"
+    }
+  ],
+  "total_alerts": 4,
+  "highest_priority": "urgent",
+  "generated_at": "2025-12-01T03:56:39.619759"
+}

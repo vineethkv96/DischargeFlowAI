@@ -1,0 +1,45 @@
+{
+  "department": "Billing Portal",
+  "patient_id": "POO1",
+  "alerts": [
+    {
+      "alert_id": "ALERT-POO1-BIL-004",
+      "patient_id": "POO1",
+      "department": "Billing Portal",
+      "priority": "high",
+      "issue_code": "BED_INVOICE_PENDING",
+      "issue_title": "Final Invoice Not Generated",
+      "message": "Invoice status: pending",
+      "suggested_action": "Generate final invoice via Billing UI before discharge",
+      "evidence": [
+        "data/billing_snapshot.json#invoice_status.invoice_generated"
+      ],
+      "data": {
+        "status": "pending"
+      },
+      "escalated_at": "2025-12-01T03:48:11.457720",
+      "status": "pending"
+    },
+    {
+      "alert_id": "ALERT-POO1-BIL-005",
+      "patient_id": "POO1",
+      "department": "Billing Portal",
+      "priority": "high",
+      "issue_code": "BED_DEPOSIT_SHORTFALL",
+      "issue_title": "Payment Required Before Discharge",
+      "message": "Patient needs to pay ₹27500.0 before discharge",
+      "suggested_action": "Collect ₹27500.0 from patient/family",
+      "evidence": [
+        "data/billing_snapshot.json#payments.required_before_discharge"
+      ],
+      "data": {
+        "amount": 27500.0
+      },
+      "escalated_at": "2025-12-01T03:48:11.457724",
+      "status": "pending"
+    }
+  ],
+  "total_alerts": 2,
+  "highest_priority": "high",
+  "generated_at": "2025-12-01T03:48:11.460003"
+}

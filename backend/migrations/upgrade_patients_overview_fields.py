@@ -31,7 +31,7 @@ async def run_migration():
 
   # Set defaults for discharge flags if missing
   print("Ensuring discharge flags exist...")
-  await db.patients.update_many(
+  db.patients.update_many(
       filter_query,
       {
           "$setOnInsert": {
@@ -66,11 +66,11 @@ async def run_migration():
 
       if update:
           update["updated_at"] = datetime.now(timezone.utc).isoformat()
-          await db.patients.update_one({"_id": doc["_id"]}, {"$set": update})
+          db.patients.update_one({"_id": doc["_id"]}, {"$set": update})
           count += 1
 
   print(f"Updated {count} patient documents with overview fields.")
-  await client.close()
+  client.close()
   print("✅ Overview migration completed.")
 
 

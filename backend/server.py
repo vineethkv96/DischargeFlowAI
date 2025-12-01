@@ -10,6 +10,9 @@ from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime, timezone, timedelta
 from enum import Enum
+import asyncio
+import subprocess
+
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -21,6 +24,12 @@ db = client[os.environ['DB_NAME']]
 
 # Create the main app
 app = FastAPI()
+@app.on_event("startup")
+async def on_startup():
+    subprocess.Popen(["python3", "/app/migrations/seed_dischargeflow_patients.py"])
+    subprocess.Popen(["python3", "/app/migrations/upgrade_patients_overview_fields.py"])
+    subprocess.Popen(["python3", "/app/migrations/seed_patientcare_data.py"])
+
 api_router = APIRouter(prefix="/api")
 
 # Enums

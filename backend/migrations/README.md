@@ -26,7 +26,7 @@ The migration script will create:
    - Nurse: `nurse@hospital.com` / `nurse123`
 
 2. **Patients** (3 sample patients):
-   - P001: John Doe
+   - P001: JohnDoe
    - P002: Jane Smith
    - P003: Robert Johnson
 
