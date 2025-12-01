@@ -68,7 +68,6 @@ async def run_playwright_mcp_extraction(patient_name: str) -> dict:
         Extract the patient details and return them in the following JSON format ONLY:
         {{
             "labs": {{ "hemoglobin": "value", "white_blood_cell_count": "value", "platelet_count": "value" }},
-            "vitals": {{ "blood_pressure": "value", "heart_rate": "value", "temperature": "value", "respiratory_rate": "value" }},
             "pharmacy_pending": ["item1", ...],
             "radiology_pending": ["item1", ...],
             "billing_pending": {{ "amount": 0, "status": "value" }},
@@ -79,7 +78,7 @@ async def run_playwright_mcp_extraction(patient_name: str) -> dict:
         }}
         
         If a field is not found, use null or empty list/dict as appropriate. Do not wrap in markdown code blocks.""",
-        "expected_output": "Billing info"
+        "expected_output": "JSON format"
     }
 
     try:
@@ -526,7 +525,7 @@ async def run_extraction_agent(patient_id: str):
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 verify_payload = {
-                    "patient_id": patient_id
+                    "patient_id": patient['mrn'].replace("PC-", "")
                 }
                 verify_response = await client.post(
                     "http://host.docker.internal:9000/api/v1/discharge/verify",
@@ -604,7 +603,7 @@ async def run_extraction_agent(patient_id: str):
             try:
                 async with httpx.AsyncClient(timeout=10.0) as client:
                     verify_payload = {
-                        "patient_id": patient_id
+                        "patient_id": patient['mrn'].replace("PC-", "")
                     }
                     verify_response = await client.post(
                         "http://host.docker.internal:9000/api/v1/discharge/verify",
